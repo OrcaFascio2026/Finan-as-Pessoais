@@ -469,7 +469,7 @@ async function connect() {
   err.style.display = 'none';
 
   try {
-    const { createClient } = supabaseLib;
+    const { createClient } = window.supabase;
     const client = createClient(url, key);
     const { error } = await client.from('transactions').select('id').limit(1);
     if (error) throw error;
@@ -518,7 +518,7 @@ window.addEventListener('DOMContentLoaded', () => {
   // Auto-connect if credentials saved
   const creds = loadCredentials();
   if (creds.url && creds.key && creds.uid) {
-    const { createClient } = supabaseLib;
+    const { createClient } = window.supabase;
     supabase = createClient(creds.url, creds.key);
     userId = creds.uid;
     startApp();
@@ -736,8 +736,7 @@ function showToast(msg, type) {
   toastTimer = setTimeout(()=>{ el.className = ''; }, 3000);
 }
 
-// Alias for supabase global
-const supabaseLib = window.supabase;
+// Alias for supabase global (handled inline in connect/init)
 </script>
 </body>
 </html>
