@@ -669,6 +669,13 @@ function togglePaid(id, paid){
     renderList();renderSummary();
   });
 }
+function delAllParcelas(desc, parcelas){
+  if(!confirm('Excluir todas as '+parcelas+' parcelas de "'+desc+'"?'))return;
+  DB.from('transactions').delete().eq('user_id',UID).eq('description',desc).eq('parcelas',parcelas).eq('type','credit').then(function(res){
+    if(res.error){toast('Erro: '+res.error.message,'err');return;}
+    toast('Todas as parcelas excluidas!','ok');loadData();renderCC();
+  });
+}
 function delTx(id){
   if(!confirm('Excluir este lancamento?'))return;
   DB.from('transactions').delete().eq('id',id).eq('user_id',UID).then(function(res){
@@ -751,21 +758,26 @@ function renderCC(){
     return '<div class="cc-card" style="background:linear-gradient(135deg,'+hexDark(c.color)+','+c.color+')"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div class="cc-name">'+c.name+'</div><div style="display:flex;gap:4px"><button style="background:rgba(255,255,255,.15);border:none;border-radius:4px;color:#fff;cursor:pointer;padding:3px 7px;font-size:.75rem" onclick="editCC(\''+c.id+'\')">Editar</button><button style="background:rgba(255,92,122,.3);border:none;border-radius:4px;color:#fff;cursor:pointer;padding:3px 7px;font-size:.75rem" onclick="delCC(\''+c.id+'\')">Excluir</button></div></div><div class="cc-limit">'+fmt(lim)+'</div><div class="cc-bar"><div class="cc-fill" style="background:#fff;opacity:.8;width:'+pct+'%"></div></div><div class="cc-meta"><span>Fechamento dia '+c.close_day+'</span><span>'+fmt(used)+' usados ('+pct+'%)</span></div></div>';
   }).join('')+'</div>';
 
+  var today=new Date().toISOString().slice(0,10);
   DB.from('transactions').select('*').eq('user_id',UID).eq('type','credit').gt('parcelas',1).order('date').then(function(res){
     var items=res.data||[];
     var groups={};
     items.forEach(function(t){
-      var k=t.description+'_'+t.parcelas;
-      if(!groups[k])groups[k]={desc:t.description,total:0,parcelas:t.parcelas,pagas:0,valor:0};
-      groups[k].total+=parseFloat(t.amount);groups[k].pagas++;groups[k].valor=parseFloat(t.amount);
+      var k=t.description+'_'+t.credit_card_id+'_'+t.parcelas;
+      if(!groups[k])groups[k]={desc:t.description,parcelas:t.parcelas,todas:[],futuras:[],valor:parseFloat(t.amount),id:t.id};
+      groups[k].todas.push(t);
+      if(t.date>=today)groups[k].futuras.push(t);
     });
+    // Only show groups that have future parcelas remaining
     var pl=document.getElementById('parcelas-list');
-    var keys=Object.keys(groups);
-    if(!keys.length){pl.innerHTML='<div class="empty">Nenhuma compra parcelada</div>';return;}
+    var keys=Object.keys(groups).filter(function(k){return groups[k].futuras.length>0;});
+    if(!keys.length){pl.innerHTML='<div class="empty">Nenhuma compra parcelada ativa</div>';return;}
     pl.innerHTML=keys.map(function(k){
       var g=groups[k];
-      var pct=(g.pagas/g.parcelas*100).toFixed(0);
-      return '<div class="parcela-item"><div><div class="parcela-desc">'+esc(g.desc)+'</div><div class="parcela-meta">'+g.pagas+'/'+g.parcelas+' parcelas — '+fmt(g.valor)+'/mes</div></div><div style="text-align:right"><div class="parcela-val">'+fmt(g.total)+'</div><div class="badge badge-pur">'+pct+'%</div></div></div>';
+      var pagas=g.todas.length-g.futuras.length;
+      var pct=(pagas/g.parcelas*100).toFixed(0);
+      var totalRestante=g.futuras.reduce(function(a,t){return a+parseFloat(t.amount);},0);
+      return '<div class="parcela-item"><div><div class="parcela-desc">'+esc(g.desc)+'</div><div class="parcela-meta">'+pagas+'/'+g.parcelas+' pagas — '+fmt(g.valor)+'/mes</div></div><div style="text-align:right"><div class="parcela-val">'+fmt(totalRestante)+' restante</div><div class="badge badge-pur">'+pct+'% pago</div></div><button class="btn-icon" style="margin-left:8px" onclick="delAllParcelas(''+esc(g.desc)+'','+g.parcelas+')">&#10005;</button></div>';
     }).join('');
   });
 }
