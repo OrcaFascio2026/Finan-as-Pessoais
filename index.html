@@ -669,7 +669,9 @@ function togglePaid(id, paid){
     renderList();renderSummary();
   });
 }
-function delAllParcelas(desc, parcelas){
+function delAllParcelas(el){
+  var desc=el.getAttribute('data-desc');
+  var parcelas=el.getAttribute('data-parc');
   if(!confirm('Excluir todas as '+parcelas+' parcelas de "'+desc+'"?'))return;
   DB.from('transactions').delete().eq('user_id',UID).eq('description',desc).eq('parcelas',parcelas).eq('type','credit').then(function(res){
     if(res.error){toast('Erro: '+res.error.message,'err');return;}
@@ -777,7 +779,7 @@ function renderCC(){
       var pagas=g.todas.length-g.futuras.length;
       var pct=(pagas/g.parcelas*100).toFixed(0);
       var totalRestante=g.futuras.reduce(function(a,t){return a+parseFloat(t.amount);},0);
-      return '<div class="parcela-item"><div><div class="parcela-desc">'+esc(g.desc)+'</div><div class="parcela-meta">'+pagas+'/'+g.parcelas+' pagas — '+fmt(g.valor)+'/mes</div></div><div style="text-align:right"><div class="parcela-val">'+fmt(totalRestante)+' restante</div><div class="badge badge-pur">'+pct+'% pago</div></div><button class="btn-icon" style="margin-left:8px" onclick="delAllParcelas(''+esc(g.desc)+'','+g.parcelas+')">&#10005;</button></div>';
+      return '<div class="parcela-item"><div><div class="parcela-desc">'+esc(g.desc)+'</div><div class="parcela-meta">'+pagas+'/'+g.parcelas+' pagas — '+fmt(g.valor)+'/mes</div></div><div style="text-align:right"><div class="parcela-val">'+fmt(totalRestante)+' restante</div><div class="badge badge-pur">'+pct+'% pago</div></div><button class="btn-icon" style="margin-left:8px" onclick="delAllParcelas(this)" data-desc="'+esc(g.desc)+'" data-parc="'+g.parcelas+'">&#10005;</button></div>';
     }).join('');
   });
 }
