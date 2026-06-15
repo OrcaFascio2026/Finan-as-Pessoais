@@ -619,12 +619,21 @@ function addTx(){
       var card=CARDS.find(function(c){return c.id===ccId;});
       if(card)closeDay=parseInt(card.close_day)||1;
     }
-    // Determine first billing month: if purchase day >= close day, first bill is month+2, else month+1
+    // Determine first billing month:
+    // The closing date of the NEXT month after purchase is the reference.
+    // If purchase day < close day of SAME month -> bill closes that same month -> due next month
+    // If purchase day >= close day -> bill closes next month -> due month+2
     var purchaseDate=new Date(date+'T12:00:00');
     var purchaseDay=purchaseDate.getDate();
-    var firstBillMonth=purchaseDate.getMonth()+(purchaseDay>=closeDay?2:1);
-    var firstBillYear=purchaseDate.getFullYear();
-    // Adjust year if month overflows
+    var purchaseMonth=purchaseDate.getMonth();
+    var purchaseYear=purchaseDate.getFullYear();
+    // Find the closing date in the same month as purchase
+    var closeDateSameMonth=new Date(purchaseYear,purchaseMonth,closeDay);
+    // If purchase is before or on closing date of same month, first bill = same month close -> due month+1
+    // If purchase is after closing date of same month, first bill = next month close -> due month+2
+    var offset=purchaseDate<=closeDateSameMonth?1:2;
+    var firstBillMonth=purchaseMonth+offset;
+    var firstBillYear=purchaseYear;
     if(firstBillMonth>11){firstBillYear+=Math.floor(firstBillMonth/12);firstBillMonth=firstBillMonth%12;}
     for(var i=0;i<parcelas;i++){
       var billMonth=firstBillMonth+i;
