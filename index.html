@@ -613,9 +613,27 @@ function addTx(){
   var rows=[];
   if(TTYPE==='credit'&&parcelas>1){
     var valorParcela=parseFloat((amt/parcelas).toFixed(2));
+    // Find card close day
+    var closeDay=1;
+    if(ccId){
+      var card=CARDS.find(function(c){return c.id===ccId;});
+      if(card)closeDay=parseInt(card.close_day)||1;
+    }
+    // Determine first billing month: if purchase day >= close day, first bill is month+2, else month+1
+    var purchaseDate=new Date(date+'T12:00:00');
+    var purchaseDay=purchaseDate.getDate();
+    var firstBillMonth=purchaseDate.getMonth()+(purchaseDay>=closeDay?2:1);
+    var firstBillYear=purchaseDate.getFullYear();
+    // Adjust year if month overflows
+    if(firstBillMonth>11){firstBillYear+=Math.floor(firstBillMonth/12);firstBillMonth=firstBillMonth%12;}
     for(var i=0;i<parcelas;i++){
-      var d=new Date(date);d.setMonth(d.getMonth()+i);
-      var ds=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+      var billMonth=firstBillMonth+i;
+      var billYear=firstBillYear;
+      if(billMonth>11){billYear+=Math.floor(billMonth/12);billMonth=billMonth%12;}
+      // Use close day as due date (or last day of month if close day doesn't exist)
+      var lastDay=new Date(billYear,billMonth+1,0).getDate();
+      var dueDay=Math.min(closeDay,lastDay);
+      var ds=billYear+'-'+String(billMonth+1).padStart(2,'0')+'-'+String(dueDay).padStart(2,'0');
       rows.push({user_id:UID,type:'credit',description:desc,amount:valorParcela,date:ds,category:cat||null,parcelas:parcelas,parcela_atual:i+1,credit_card_id:ccId||null});
     }
   } else {
