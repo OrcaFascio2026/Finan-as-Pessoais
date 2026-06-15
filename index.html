@@ -444,14 +444,17 @@ window.addEventListener('DOMContentLoaded', function(){
 function populateMonths(){
   var sel=document.getElementById('month-sel');
   var now=new Date();
-  for(var i=-2;i<12;i++){
-    var d=new Date(now.getFullYear(),now.getMonth()-i,1);
-    var v=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
-    var l=d.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+  var start=new Date(2026,4,1); // Maio 2026
+  var end=new Date(2027,4,1);   // Maio 2027
+  var current=new Date(end);
+  while(current>=start){
+    var v=current.getFullYear()+'-'+String(current.getMonth()+1).padStart(2,'0');
+    var l=current.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
     var o=document.createElement('option');
     o.value=v;o.textContent=l[0].toUpperCase()+l.slice(1);
-    if(i===0)o.selected=true;
+    if(current.getFullYear()===now.getFullYear()&&current.getMonth()===now.getMonth())o.selected=true;
     sel.appendChild(o);
+    current.setMonth(current.getMonth()-1);
   }
 }
 
@@ -629,9 +632,9 @@ function addTx(){
     var purchaseYear=purchaseDate.getFullYear();
     // Find the closing date in the same month as purchase
     var closeDateSameMonth=new Date(purchaseYear,purchaseMonth,closeDay);
-    // If purchase is before or on closing date of same month, first bill = same month close -> due month+1
-    // If purchase is after closing date of same month, first bill = next month close -> due month+2
-    var offset=purchaseDate<=closeDateSameMonth?1:2;
+    // If purchase is before or on closing date of same month -> enters current month's bill -> due same month
+    // If purchase is after closing date of same month -> enters next month's bill -> due next month
+    var offset=purchaseDate<=closeDateSameMonth?0:1;
     var firstBillMonth=purchaseMonth+offset;
     var firstBillYear=purchaseYear;
     if(firstBillMonth>11){firstBillYear+=Math.floor(firstBillMonth/12);firstBillMonth=firstBillMonth%12;}
