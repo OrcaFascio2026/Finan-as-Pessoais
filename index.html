@@ -438,7 +438,7 @@
 
 <script>
 // ═══════════ STATE ═══════════
-let supabase = null, userId = '', txFilter = 'all', txType = 'income';
+let sbClient = null, userId = '', txFilter = 'all', txType = 'income';
 let allTx = [], chart = null;
 const CATS_COLORS = {
   'Salário':'#00e89a','Freelance':'#5b8cff','Investimentos':'#ffca44',
@@ -477,7 +477,7 @@ async function connect() {
     localStorage.setItem('sb_url', url);
     localStorage.setItem('sb_key', key);
     localStorage.setItem('sb_uid', uid);
-    supabase = client; userId = uid;
+    sbClient = client; userId = uid;
     startApp();
   } catch(e) {
     showErr('Erro: ' + (e.message || 'verifique URL e chave'));
@@ -519,7 +519,7 @@ window.addEventListener('DOMContentLoaded', () => {
   const creds = loadCredentials();
   if (creds.url && creds.key && creds.uid) {
     const { createClient } = window.supabase;
-    supabase = createClient(creds.url, creds.key);
+    sbClient = createClient(creds.url, creds.key);
     userId = creds.uid;
     startApp();
   }
@@ -543,7 +543,7 @@ async function loadData() {
   document.getElementById('tx-list').innerHTML = '<div class="loading"><span class="spinner"></span>Carregando...</div>';
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await sbClient
       .from('transactions')
       .select('*')
       .eq('user_id', userId)
@@ -683,7 +683,7 @@ async function addTransaction() {
   btn.disabled = true; btn.textContent = 'Salvando...';
 
   try {
-    const { error } = await supabase.from('transactions').insert({
+    const { error } = await sbClient.from('transactions').insert({
       user_id: userId, type: txType,
       description: desc, amount, date, category: cat || null
     });
@@ -705,7 +705,7 @@ async function addTransaction() {
 async function delTx(id) {
   if (!confirm('Excluir esta transação?')) return;
   try {
-    const { error } = await supabase.from('transactions').delete().eq('id', id).eq('user_id', userId);
+    const { error } = await sbClient.from('transactions').delete().eq('id', id).eq('user_id', userId);
     if (error) throw error;
     showToast('Excluída!', 'success');
     allTx = allTx.filter(t=>t.id!==id);
