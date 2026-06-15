@@ -591,9 +591,10 @@ function populateCatSelect(){
   var sel=document.getElementById('t-cat');
   sel.innerHTML='<option value="">-- Selecione --</option>';
   var type=TTYPE==='credit'?'expense':TTYPE;
-  var list=CATS.filter(function(c){return c.type===type;});
-  if(!list.length){DEFAULT_CATS.filter(function(c){return c.type===type;}).forEach(function(c){var o=document.createElement('option');o.value=c.name;o.textContent=c.name;sel.appendChild(o);});}
-  else{list.forEach(function(c){var o=document.createElement('option');o.value=c.name;o.textContent=c.name;sel.appendChild(o);});}
+  var defaults=DEFAULT_CATS.filter(function(c){return c.type===type;});
+  var custom=CATS.filter(function(c){return c.type===type;});
+  var merged=defaults.concat(custom);
+  merged.forEach(function(c){var o=document.createElement('option');o.value=c.name;o.textContent=c.name;sel.appendChild(o);});
 }
 
 function addTx(){
