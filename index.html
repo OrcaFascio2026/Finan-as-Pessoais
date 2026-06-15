@@ -557,7 +557,11 @@ function renderCatBreakdown(){
     var cat=e[0],val=e[1];
     var pct=total?(val/total*100).toFixed(0):0;
     var col=getCatColor(cat);
-    return '<div class="catitem"><span class="catlabel">'+cat+'</span><div class="catbar"><div class="catfill" style="width:'+pct+'%;background:'+col+'"></div></div><span class="catval" style="color:'+col+'">'+fmt(val)+'</span></div>';
+    return '<div class="catitem" onclick="showCatDetail(\''+cat+'\')">'+
+    '<span class="catlabel" style="cursor:pointer;color:var(--text)">'+cat+'</span>'+
+    '<div class="catbar"><div class="catfill" style="width:'+pct+'%;background:'+col+'"></div></div>'+
+    '<span class="catval" style="color:'+col+'">'+fmt(val)+'</span>'+
+  '</div>';
   }).join('');
 }
 
@@ -660,7 +664,8 @@ function renderCats(){
 }
 function catItemHtml(c){
   var delBtn=c.id?'<button class="btn-icon" onclick="delCat(\''+c.id+'\')">✕</button>':'<span style="font-size:.7rem;color:var(--muted)">padrao</span>';
-  return '<div class="cat-manage-item"><div class="cat-dot" style="background:'+c.color+'"></div><span class="cat-manage-name">'+c.name+'</span>'+delBtn+'</div>';
+  var editBtn=c.id?'<button class="btn-icon edit" onclick="editCat(\''+c.id+'\',\''+c.name.replace(/\'/g,\'\\\'\')+'\')">&#9998;</button>':'';
+  return '<div class="cat-manage-item"><div class="cat-dot" style="background:'+c.color+'"></div><span class="cat-manage-name">'+c.name+'</span><div style="display:flex;gap:4px">'+editBtn+delBtn+'</div></div>';
 }
 function openAddCat(type){document.getElementById('cat-type-hidden').value=type;document.getElementById('cat-name-input').value='';openModal('modal-add-cat');}
 function saveCat(){
@@ -671,6 +676,14 @@ function saveCat(){
   DB.from('categories').insert({user_id:UID,name:name,type:type,color:color}).then(function(res){
     if(res.error){toast('Erro: '+res.error.message,'err');return;}
     toast('Categoria criada!','ok');closeModal('modal-add-cat');loadCats();
+  });
+}
+function editCat(id, currentName){
+  var newName=prompt('Novo nome:', currentName);
+  if(!newName||!newName.trim()||newName.trim()===currentName)return;
+  DB.from('categories').update({name:newName.trim()}).eq('id',id).then(function(res){
+    if(res.error){toast('Erro: '+res.error.message,'err');return;}
+    toast('Categoria atualizada!','ok');loadCats();
   });
 }
 function delCat(id){
@@ -842,6 +855,23 @@ function closeModal(id){document.getElementById(id).style.display='none';}
 function closeModalOutside(e,id){if(e.target.id===id)closeModal(id);}
 
 // ===== UTILS =====
+function showCatDetail(cat){
+  var items=ALL.filter(function(t){return t.category===cat&&(t.type==='expense'||t.type==='credit');});
+  var total=items.reduce(function(a,t){return a+parseFloat(t.amount);},0);
+  var col=getCatColor(cat);
+  document.getElementById('cat-detail-title').textContent=cat;
+  document.getElementById('cat-detail-total').textContent=fmt(total);
+  document.getElementById('cat-detail-total').style.color=col;
+  var el=document.getElementById('cat-detail-list');
+  if(!items.length){el.innerHTML='<div class="empty">Nenhum lancamento</div>';openModal('modal-cat-detail');return;}
+  items.sort(function(a,b){return b.date.localeCompare(a.date);});
+  el.innerHTML=items.map(function(t){
+    var paidTag=t.paid?'<span class="badge badge-green" style="font-size:.65rem">Pago</span> ':'';
+    var parcTag=t.parcelas>1?'<span class="badge badge-pur" style="font-size:.65rem">'+t.parcela_atual+'/'+t.parcelas+'x</span> ':'';
+    return '<div class="txi"><div class="dot e"></div><div class="tinfo"><div class="tdesc">'+paidTag+parcTag+esc(t.description)+'</div><div class="tmeta">'+fmtDate(t.date)+'</div></div><div class="tamt e">- '+fmt(t.amount)+'</div></div>';
+  }).join('');
+  openModal('modal-cat-detail');
+}
 function fmt(v){return 'R$ '+parseFloat(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function fmtDate(d){if(!d)return '';var p=d.slice(0,10).split('-');return p[2]+'/'+p[1]+'/'+p[0];}
 function fmtDateShort(d){if(!d)return '';return fmtDate(d);}
@@ -855,5 +885,16 @@ function toast(msg,type){var el=document.getElementById('toast');el.textContent=
   if(u&&k&&id){try{DB=window.supabase.createClient(u,k);UID=id;}catch(e){}}
 })();
 </script>
+
+<div class="modal-overlay" id="modal-cat-detail" style="display:none" onclick="closeModalOutside(event,'modal-cat-detail')">
+  <div class="modal" style="max-width:520px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+      <h3 id="cat-detail-title" style="margin:0">Categoria</h3>
+      <button class="btn-icon" onclick="closeModal('modal-cat-detail')" style="font-size:1rem">&#10005;</button>
+    </div>
+    <div id="cat-detail-total" style="font-family:'JetBrains Mono',monospace;font-size:1.3rem;font-weight:600;color:var(--red);margin-bottom:1rem"></div>
+    <div id="cat-detail-list" style="display:flex;flex-direction:column;gap:5px;max-height:360px;overflow-y:auto"></div>
+  </div>
+</div>
 </body>
 </html>
