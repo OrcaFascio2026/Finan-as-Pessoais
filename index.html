@@ -619,9 +619,10 @@ function addTx(){
     var valorParcela=parseFloat((amt/parcelas).toFixed(2));
     // Find card close day
     var closeDay=1;
+    var paymentDayCC=1;
     if(ccId){
       var card=CARDS.find(function(c){return c.id===ccId;});
-      if(card)closeDay=parseInt(card.close_day)||1;
+      if(card){closeDay=parseInt(card.close_day)||1;paymentDayCC=parseInt(card.payment_day)||closeDay+7;}
     }
     // Determine first billing month:
     // The closing date of the NEXT month after purchase is the reference.
@@ -631,7 +632,7 @@ function addTx(){
     var purchaseDay=purchaseDate.getDate();
     var purchaseMonth=purchaseDate.getMonth();
     var purchaseYear=purchaseDate.getFullYear();
-    var paymentDay=(card&&card.payment_day)?parseInt(card.payment_day):closeDay+7;
+    var paymentDay=paymentDayCC;
     // Compra ANTES do fechamento -> entra fatura deste mes -> paga este mes
     // Compra NO DIA ou DEPOIS do fechamento -> entra proxima fatura -> paga mes seguinte
     var offset=purchaseDay<closeDay?0:1;
