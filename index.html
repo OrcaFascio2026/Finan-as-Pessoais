@@ -655,10 +655,12 @@ function loadCats(){
 }
 
 function renderCats(){
-  var inc=CATS.filter(function(c){return c.type==='income';});
-  var exp=CATS.filter(function(c){return c.type==='expense';});
-  if(!inc.length)inc=DEFAULT_CATS.filter(function(c){return c.type==='income';});
-  if(!exp.length)exp=DEFAULT_CATS.filter(function(c){return c.type==='expense';});
+  var customInc=CATS.filter(function(c){return c.type==='income';});
+  var customExp=CATS.filter(function(c){return c.type==='expense';});
+  var defInc=DEFAULT_CATS.filter(function(c){return c.type==='income';});
+  var defExp=DEFAULT_CATS.filter(function(c){return c.type==='expense';});
+  var inc=defInc.concat(customInc);
+  var exp=defExp.concat(customExp);
   document.getElementById('cats-income').innerHTML=inc.map(catItemHtml).join('');
   document.getElementById('cats-expense').innerHTML=exp.map(catItemHtml).join('');
 }
@@ -715,7 +717,7 @@ function renderCC(){
     var used=ALL.filter(function(t){return t.credit_card_id===c.id;}).reduce(function(a,t){return a+parseFloat(t.amount);},0);
     var lim=parseFloat(c.limit_amount)||0;
     var pct=lim?(Math.min(used/lim*100,100)).toFixed(0):0;
-    return '<div class="cc-card" style="background:linear-gradient(135deg,'+hexDark(c.color)+','+c.color+')"><div class="cc-name">'+c.name+'</div><div class="cc-limit">'+fmt(lim)+'</div><div class="cc-bar"><div class="cc-fill" style="background:#fff;opacity:.8;width:'+pct+'%"></div></div><div class="cc-meta"><span>Fechamento dia '+c.close_day+'</span><span>'+fmt(used)+' usados ('+pct+'%)</span></div></div>';
+    return '<div class="cc-card" style="background:linear-gradient(135deg,'+hexDark(c.color)+','+c.color+')"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div class="cc-name">'+c.name+'</div><div style="display:flex;gap:4px"><button style="background:rgba(255,255,255,.15);border:none;border-radius:4px;color:#fff;cursor:pointer;padding:3px 7px;font-size:.75rem" onclick="editCC(\''+c.id+'\')">Editar</button><button style="background:rgba(255,92,122,.3);border:none;border-radius:4px;color:#fff;cursor:pointer;padding:3px 7px;font-size:.75rem" onclick="delCC(\''+c.id+'\')">Excluir</button></div></div><div class="cc-limit">'+fmt(lim)+'</div><div class="cc-bar"><div class="cc-fill" style="background:#fff;opacity:.8;width:'+pct+'%"></div></div><div class="cc-meta"><span>Fechamento dia '+c.close_day+'</span><span>'+fmt(used)+' usados ('+pct+'%)</span></div></div>';
   }).join('')+'</div>';
 
   DB.from('transactions').select('*').eq('user_id',UID).eq('type','credit').gt('parcelas',1).order('date').then(function(res){
@@ -745,6 +747,40 @@ function addCC(){
   DB.from('credit_cards').insert({user_id:UID,name:name,limit_amount:lim,close_day:close,color:color}).then(function(res){
     if(res.error){toast('Erro: '+res.error.message,'err');return;}
     toast('Cartao adicionado!','ok');closeModal('modal-add-cc');loadCards();
+  });
+}
+function editCC(id){
+  var c=CARDS.find(function(x){return x.id===id;});
+  if(!c)return;
+  document.getElementById('cc-name').value=c.name;
+  document.getElementById('cc-limit').value=parseFloat(c.limit_amount).toFixed(2).replace('.',',');
+  document.getElementById('cc-close').value=c.close_day;
+  document.getElementById('cc-color').value=c.color||'#a78bfa';
+  var btn=document.querySelector('#modal-add-cc .modal-footer button:last-child');
+  btn.textContent='Atualizar';
+  btn.onclick=function(){updateCC(id);};
+  openModal('modal-add-cc');
+}
+function updateCC(id){
+  var name=document.getElementById('cc-name').value.trim();
+  var lim=parseMoney(document.getElementById('cc-limit').value);
+  var close=parseInt(document.getElementById('cc-close').value)||15;
+  var color=document.getElementById('cc-color').value;
+  if(!name){toast('Informe o nome','err');return;}
+  DB.from('credit_cards').update({name:name,limit_amount:lim,close_day:close,color:color}).eq('id',id).then(function(res){
+    if(res.error){toast('Erro: '+res.error.message,'err');return;}
+    toast('Cartao atualizado!','ok');
+    closeModal('modal-add-cc');
+    var btn=document.querySelector('#modal-add-cc .modal-footer button:last-child');
+    btn.textContent='Salvar';btn.onclick=function(){addCC();};
+    loadCards();
+  });
+}
+function delCC(id){
+  if(!confirm('Excluir este cartao? As transacoes vinculadas nao serao excluidas.'))return;
+  DB.from('credit_cards').delete().eq('id',id).then(function(res){
+    if(res.error){toast('Erro: '+res.error.message,'err');return;}
+    toast('Cartao excluido!','ok');loadCards();
   });
 }
 function hexDark(hex){
