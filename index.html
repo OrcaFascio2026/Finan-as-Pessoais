@@ -636,9 +636,9 @@ function addTx(){
     var purchaseYear=purchaseDate.getFullYear();
     var paymentDay=paymentDayCC;
     console.log('purchaseDay:',purchaseDay,'offset:',purchaseDay<closeDay?0:1,'paymentDay:',paymentDay);
-    // Compra ANTES do fechamento -> entra fatura deste mes -> paga este mes
-    // Compra NO DIA ou DEPOIS do fechamento -> entra proxima fatura -> paga mes seguinte
-    var offset=purchaseDay<closeDay?0:1;
+    // Compra ANTES do fechamento -> fatura fecha este mes -> paga mes seguinte (offset 1)
+    // Compra NO DIA ou DEPOIS do fechamento -> fatura fecha mes que vem -> paga dois meses depois (offset 2)
+    var offset=purchaseDay<closeDay?1:2;
     var firstPayMonth=purchaseMonth+offset;
     var firstPayYear=purchaseYear;
     if(firstPayMonth>11){firstPayYear+=Math.floor(firstPayMonth/12);firstPayMonth=firstPayMonth%12;}
