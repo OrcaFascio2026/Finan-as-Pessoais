@@ -238,14 +238,15 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue)}
             <div class="fg"><label>Descricao</label><input type="text" id="t-desc" placeholder="ex: Salario, Mercado..."></div>
             <div class="frow2 fg">
               <div><label>Valor (R$)</label><input type="text" id="t-amt" placeholder="0,00" oninput="maskMoney(this)"></div>
-              <div><label>Data</label><input type="date" id="t-date"></div>
+              <div><label>Data</label><input type="date" id="t-date" onchange="updateParcelaDates()"></div>
             </div>
             <div class="fg"><label>Categoria</label><select id="t-cat"><option value="">-- Selecione --</option></select></div>
             <div id="parcelas-section" style="display:none">
               <div class="frow2 fg">
-                <div><label>Num. parcelas</label><input type="number" id="t-parcelas" placeholder="ex: 12" min="1" max="120" value="1"></div>
+                <div><label>Num. parcelas</label><input type="number" id="t-parcelas" placeholder="ex: 12" min="1" max="120" value="1" oninput="updateParcelaDates()"></div>
                 <div><label>Cartao</label><select id="t-cc"><option value="">-- Selecione --</option></select></div>
               </div>
+              <div id="parcela-dates" style="display:flex;flex-direction:column;gap:6px;margin-bottom:.9rem"></div>
             </div>
             <button class="btn btn-primary" id="addbtn" onclick="addTx()">Adicionar</button>
           </div>
@@ -577,6 +578,24 @@ function getCatColor(name){
 }
 
 // ===== ADD TX =====
+function updateParcelaDates(){
+  var n=parseInt(document.getElementById('t-parcelas').value)||1;
+  var baseDate=document.getElementById('t-date').value;
+  var container=document.getElementById('parcela-dates');
+  if(n<=1){container.innerHTML='';return;}
+  var html='<div style="font-size:.75rem;color:var(--muted);margin-bottom:4px">Data de vencimento de cada parcela:</div>';
+  for(var i=0;i<n;i++){
+    // Suggest date: base month + i+1, same day
+    var suggested='';
+    if(baseDate){
+      var d=new Date(baseDate+'T12:00:00');
+      d.setMonth(d.getMonth()+i+1);
+      suggested=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    }
+    html+='<div style="display:flex;align-items:center;gap:8px"><span style="font-size:.75rem;color:var(--muted);min-width:60px">Parcela '+(i+1)+'x</span><input type="date" id="parc-date-'+i+'" value="'+suggested+'" style="flex:1;margin-bottom:0"></div>';
+  }
+  container.innerHTML=html;
+}
 function setType(t){
   TTYPE=t;
   document.getElementById('btn-i').className='tbtn'+(t==='income'?' ai':'');
@@ -617,38 +636,10 @@ function addTx(){
   var rows=[];
   if(TTYPE==='credit'&&parcelas>1){
     var valorParcela=parseFloat((amt/parcelas).toFixed(2));
-    // Find card close day
-    var closeDay=1;
-    var paymentDayCC=1;
-    if(ccId){
-      var card=CARDS.find(function(c){return c.id===ccId;});
-      console.log('CARD FOUND:', card);
-      if(card){closeDay=parseInt(card.close_day)||1;paymentDayCC=parseInt(card.payment_day)||closeDay+7;}
-    }
-    console.log('closeDay:',closeDay,'paymentDayCC:',paymentDayCC);
-    // Determine first billing month:
-    // The closing date of the NEXT month after purchase is the reference.
-    // If purchase day < close day of SAME month -> bill closes that same month -> due next month
-    // If purchase day >= close day -> bill closes next month -> due month+2
-    var purchaseDate=new Date(date+'T12:00:00');
-    var purchaseDay=purchaseDate.getDate();
-    var purchaseMonth=purchaseDate.getMonth();
-    var purchaseYear=purchaseDate.getFullYear();
-    var paymentDay=paymentDayCC;
-    console.log('purchaseDay:',purchaseDay,'offset:',purchaseDay<closeDay?0:1,'paymentDay:',paymentDay);
-    // Compra ANTES do fechamento -> fatura fecha este mes -> paga mes seguinte (offset 1)
-    // Compra NO DIA ou DEPOIS do fechamento -> fatura fecha mes que vem -> paga dois meses depois (offset 2)
-    var offset=purchaseDay<closeDay?1:2;
-    var firstPayMonth=purchaseMonth+offset;
-    var firstPayYear=purchaseYear;
-    if(firstPayMonth>11){firstPayYear+=Math.floor(firstPayMonth/12);firstPayMonth=firstPayMonth%12;}
     for(var i=0;i<parcelas;i++){
-      var payMonth=firstPayMonth+i;
-      var payYear=firstPayYear;
-      if(payMonth>11){payYear+=Math.floor(payMonth/12);payMonth=payMonth%12;}
-      var lastDay=new Date(payYear,payMonth+1,0).getDate();
-      var dueDay=Math.min(paymentDay,lastDay);
-      var ds=payYear+'-'+String(payMonth+1).padStart(2,'0')+'-'+String(dueDay).padStart(2,'0');
+      var dateInput=document.getElementById('parc-date-'+i);
+      var ds=dateInput?dateInput.value:date;
+      if(!ds){toast('Informe a data da parcela '+(i+1),'err');btn.disabled=false;btn.textContent='Adicionar';return;}
       rows.push({user_id:UID,type:'credit',description:desc,amount:valorParcela,date:ds,category:cat||null,parcelas:parcelas,parcela_atual:i+1,credit_card_id:ccId||null});
     }
   } else {
@@ -657,7 +648,7 @@ function addTx(){
 
   DB.from('transactions').insert(rows).then(function(res){
     if(res.error){toast('Erro: '+res.error.message,'err');btn.disabled=false;btn.textContent='Adicionar';return;}
-    document.getElementById('t-desc').value='';document.getElementById('t-amt').value='';document.getElementById('t-cat').value='';document.getElementById('t-parcelas').value='1';
+    document.getElementById('t-desc').value='';document.getElementById('t-amt').value='';document.getElementById('t-cat').value='';document.getElementById('t-parcelas').value='1';document.getElementById('parcela-dates').innerHTML='';
     toast(parcelas>1?parcelas+'x de '+fmt(amt/parcelas)+' lancadas!':'Adicionado!','ok');
     btn.disabled=false;btn.textContent='Adicionar';loadData();
   });
